@@ -16,19 +16,33 @@ App = {
 	initWeb3: function() {
 		if (typeof web3 !== 'undefined') {
 			web3.currentProvider.on('accountsChanged', function (accounts) {
-				console.log("account changed: " + accounts[0]);
-				App.account = accounts[0];
-				return App.render();
+				if(accounts[0]) {
+					if(App.account == 0x0) {
+						console.log("user account login: " + accounts[0]);
+						App.showStatus("login");
+					} else {
+						console.log("user account changed: " + accounts[0]);
+						App.showStatus("switch");
+					}
+					App.account = accounts[0];
+					return App.initContract();
+				} else {
+					console.log("user account log out !");
+					location.reload();
+				}
 			});
-			if(web3.eth.accounts[0] == null) {
-				console.log("user account is not found !");
-			} else {
+			if(web3.eth.accounts[0]) {
 				console.log("user account: " + web3.eth.accounts[0]);
 				App.account = web3.eth.accounts[0];
+				App.showStatus("login");
 				return App.initContract();
+			} else {
+				console.log("user account is not found !");
+				App.showStatus("logout");
 			}
 		} else {
 			console.log("web3 service not found !");
+			App.showStatus("logout");
 		}
 	},
 
@@ -47,7 +61,7 @@ App = {
 		let sellEvent = App.contracts.DappTokenSale.Sell();
 		sellEvent.watch(function(error, result) {
 			if(!error) {
-				$('#status').html("Token transaction is done !");
+				App.showStatus("done");
 				return App.render();
 			} else {
 				console.log(error);
@@ -56,6 +70,8 @@ App = {
 	},
 
 	render: function() {
+		// App.showStatus("off");
+
 		$('#accountAddress').html(App.account);
 
 		web3.eth.getBalance(App.account, function(error, result) {
@@ -110,16 +126,52 @@ App = {
 				value: numberOfTokens * App.tokenPrice,
 				gas: 500000	// gas limit
 			};
-		$('#status_bar').show();
-		$('#status').html("Token transaction is waiting confirmation ...");
 		console.log("Buy Tokens ... ");
+		App.showStatus("wait");
 		App.contracts.DappTokenSale.buyTokens(numberOfTokens, sender, function(error, result) {
 			if(!error) {
-				$('#status').html("Token transaction is under processing ...");
+				App.showStatus("transfer");
 			} else {
 				console.log(error);
 			}
 		});
+	},
+
+	showStatus: function(status) {
+		$('#status_box').removeClass();
+		// $('#status_icon').removeClass();
+		switch(status) {
+			case "login":
+				$('#status_box').addClass('alert alert-success');
+				// $('#status_icon').addClass('glyphicon glyphicon-log-in');
+				$('#status').html("Welcome to Dapp Token !");
+				break;
+			case "logout":
+				$('#status_box').addClass('alert alert-danger');
+				// $('#status_icon').addClass('glyphicon glyphicon-log-out');
+				$('#status').html("Please log-in with MetaMask first !");
+				break;
+			case "switch":
+				$('#status_box').addClass('alert alert-warning');
+				// $('#status_icon').addClass('glyphicon glyphicon-retweet');
+				$('#status').html("User account changed !");
+				break;
+			case "wait":
+				$('#status_box').addClass('alert alert-danger');
+				$('#status').html("Token transaction is waiting confirmation ...");
+				break;
+			case "transfer":
+				$('#status_box').addClass('alert alert-primary');
+				$('#status').html("Token transaction is under processing ...");
+				break;
+			case "done":
+				$('#status_box').addClass('alert alert-success');
+				$('#status').html("Token transaction is done !");
+				break;
+			case "off":
+				$('#status_box').hide();
+				break;
+		};
 	},
 
 }
